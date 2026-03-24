@@ -121,64 +121,6 @@ ytd_daily_brand as (
   cross join ranges r
   group by 1, 2
 ),
-im_base_filtered as (
-  select b.master_id, b.week_start, b.marketplace_id
-  from pattern_db.inventory_hub.demand_forecasts b
-  cross join ranges r
-  where b.week_start >= r.start_13w and b.week_start < r.end_13w_excl
-  group by all
-),
-im_all_items as (
-  select b.master_id, dateadd(day, seq.seq, b.week_start) as date, b.week_start, b.marketplace_id
-  from im_base_filtered b
-  cross join (
-    select 0 as seq union all select 1 union all select 2 union all
-    select 3       union all select 4 union all select 5 union all select 6
-  ) seq
-),
-im_forecast as (
-  select
-    a.master_id,
-    a.date,
-    case
-      when pt.catalog_brand ilike 'Standard Process%' then 'Standard Process'
-      when pt.catalog_brand ilike 'Nutricia%'         then 'Nutricia'
-      else pt.catalog_brand
-    end as catalog_brand,
-    (
-      coalesce(df.base_rate_overwrite, df.base_rate, 0)
-      + coalesce(df.promo_increase_overwrite, df.promo_increase, 0)
-      + coalesce(df.seasonal_increase_overwrite, df.seasonal_increase, 0)
-    ) / 7 as quantity
-  from im_all_items a
-  join pattern_db.inventory_hub.demand_forecasts df
-    on df.master_id = a.master_id
-   and df.week_start = date_trunc(week, a.date)
-   and df.marketplace_id = a.marketplace_id
-  left join analytics_db.stg_catalog.stg_catalog__products p
-    on p.master_id = a.master_id
-  left join pattern_db.public.product_catalog_brand_hierarchy pt
-    on pt.catalog_brand_id = p.partner_id and is_terminal_level = true
-  left join analytics_db.stg_inventory_hub.stg_inventory_hub__marketplaces mm
-    on mm.id = a.marketplace_id
-  where df.effective_end_date is null
-    and exists (select 1 from allowed_marketplaces am where am.marketplace_name = mm.name)
-),
-im_forecast_weekly_brand as (
-  select
-    to_date(dateadd(day, -dayofweek(date), date)) as week_start_date,
-    catalog_brand,
-    sum(quantity) as fcst_units
-  from im_forecast
-  group by 1, 2
-),
-im_fcst_13w_brand as (
-  select f.catalog_brand, sum(f.fcst_units) as fcst_units_13w_im
-  from im_forecast_weekly_brand f
-  cross join ranges r
-  where f.week_start_date >= r.start_13w and f.week_start_date < r.end_13w_excl
-  group by 1
-),
 act_yoy_for_fcst_13w as (
   select w.catalog_brand, sum(w.units) as units_13w_yoy_actuals
   from weekly_actuals w
@@ -187,14 +129,35 @@ act_yoy_for_fcst_13w as (
     and w.week_start_date <  dateadd(week, -52, r.end_13w_excl)
   group by 1
 ),
-ae_bounds as (
+-- IM forecast: sum weekly demand plan directly (eliminates prior day-expansion which was a no-op ÷7×7)
+im_fcst_13w_brand as (
   select
-    date_trunc('month', r.start_13w)                                                              as ae_month_start,
-    dateadd(month, 1, date_trunc('month', dateadd(day, -1, r.end_13w_excl)))                      as ae_month_end_excl,
-    dateadd(year, -1, date_trunc('month', r.start_13w))                                           as prev_month_start,
-    dateadd(year, -1, dateadd(month,1,date_trunc('month',dateadd(day,-1,r.end_13w_excl))))        as prev_month_end_excl
-  from ranges r
+    case
+      when pt.catalog_brand ilike 'Standard Process%' then 'Standard Process'
+      when pt.catalog_brand ilike 'Nutricia%'         then 'Nutricia'
+      else pt.catalog_brand
+    end as catalog_brand,
+    sum(
+      coalesce(df.base_rate_overwrite, df.base_rate, 0)
+      + coalesce(df.promo_increase_overwrite, df.promo_increase, 0)
+      + coalesce(df.seasonal_increase_overwrite, df.seasonal_increase, 0)
+    ) as fcst_units_13w_im
+  from pattern_db.inventory_hub.demand_forecasts df
+  cross join ranges r
+  join analytics_db.stg_catalog.stg_catalog__products p
+    on p.master_id = df.master_id
+  join pattern_db.public.product_catalog_brand_hierarchy pt
+    on pt.catalog_brand_id = p.partner_id and is_terminal_level = true
+  join analytics_db.stg_inventory_hub.stg_inventory_hub__marketplaces mm
+    on mm.id = df.marketplace_id
+  join allowed_marketplaces am
+    on am.marketplace_name = mm.name
+  where df.effective_end_date is null
+    and df.week_start >= r.start_13w
+    and df.week_start < r.end_13w_excl
+  group by 1
 ),
+-- AE forecast: pro-rate monthly units into the 13-week window by calendar days
 ae_forecast_src as (
   select
     case
@@ -213,81 +176,21 @@ ae_forecast_src as (
     units
   from pattern_db.accounting_finance.adaptive_op_2026_units
 ),
-ae_monthly_forecast as (
-  select s.brand, s.month_start, sum(s.units) as forecast_units
-  from ae_forecast_src s
-  cross join ae_bounds b
-  where s.month_start >= b.ae_month_start and s.month_start < b.ae_month_end_excl
-  group by 1, 2
-),
-ae_prev_daily as (
-  select a.order_date as dt, a.catalog_brand as brand, sum(a.quantity) as qty
-  from actuals_sales_cte a
-  cross join ae_bounds b
-  where a.order_date >= b.prev_month_start and a.order_date < b.prev_month_end_excl
-  group by 1, 2
-),
-ae_monthly_totals_prev as (
-  select brand, date_trunc('month', dt) as month_start_prev, sum(qty) as month_qty
-  from ae_prev_daily
-  group by 1, 2
-),
-ae_calendar_prev as (
-  select s.dt
-  from (select dateadd(day, seq4(), (select prev_month_start from ae_bounds)) as dt
-        from table(generator(rowcount => 400))) s
-  where s.dt < (select prev_month_end_excl from ae_bounds)
-),
-ae_shares_brand_prev as (
-  select
-    mt.brand,
-    date_part('month', cp.dt) as month_no,
-    date_part('day',   cp.dt) as day_of_month,
-    case when mt.month_qty > 0 then coalesce(pd.qty,0)::float / mt.month_qty else null end as share_brand
-  from ae_monthly_totals_prev mt
-  join ae_calendar_prev cp on date_trunc('month', cp.dt) = mt.month_start_prev
-  left join ae_prev_daily pd on pd.brand = mt.brand and pd.dt = cp.dt
-),
-ae_avg_shares_prev as (
-  select month_no, day_of_month, avg(share_brand) as share_all_brands
-  from ae_shares_brand_prev
-  where share_brand is not null
-  group by 1, 2
-),
-ae_days_horizon as (
-  select
-    s.d                                                    as day_yr,
-    date_trunc('month', s.d)                               as month_start_yr,
-    date_part('month', s.d)                                as month_no,
-    date_part('day',   s.d)                                as day_of_month,
-    date_part('day', last_day(s.d))                        as days_in_month_yr,
-    to_date(dateadd(day, -dayofweek(s.d), s.d))            as week_start
-  from (select dateadd(day, seq4(), (select start_13w from ranges)) as d
-        from table(generator(rowcount => 120))) s
-  where s.d < (select end_13w_excl from ranges)
-),
-ae_daily_alloc as (
-  select
-    mf.brand,
-    dh.week_start,
-    mf.forecast_units * coalesce(sb.share_brand, av.share_all_brands, 1.0/dh.days_in_month_yr) as daily_forecast_units
-  from ae_days_horizon dh
-  join ae_monthly_forecast mf on dh.month_start_yr = mf.month_start
-  left join ae_shares_brand_prev sb
-    on sb.brand = mf.brand and sb.month_no = dh.month_no and sb.day_of_month = dh.day_of_month
-  left join ae_avg_shares_prev av
-    on av.month_no = dh.month_no and av.day_of_month = dh.day_of_month
-),
-ae_weekly_forecast as (
-  select brand as catalog_brand, week_start, sum(daily_forecast_units) as weekly_forecast_units
-  from ae_daily_alloc
-  group by 1, 2
-),
 ae_fcst_13w_brand as (
-  select w.catalog_brand, sum(w.weekly_forecast_units) as fcst_units_13w_ae
-  from ae_weekly_forecast w
+  select
+    s.brand as catalog_brand,
+    sum(
+      s.units
+      * datediff('day',
+          greatest(s.month_start, r.start_13w),
+          least(dateadd(month, 1, s.month_start), r.end_13w_excl)
+        )
+      / datediff('day', s.month_start, dateadd(month, 1, s.month_start))
+    ) as fcst_units_13w_ae
+  from ae_forecast_src s
   cross join ranges r
-  where w.week_start >= r.start_13w and w.week_start < r.end_13w_excl
+  where s.month_start < r.end_13w_excl
+    and dateadd(month, 1, s.month_start) > r.start_13w
   group by 1
 ),
 inv_max as (
@@ -326,7 +229,7 @@ inventory_brand as (
 ),
 brands_universe as (
   select distinct catalog_brand from weekly_actuals
-  union select distinct catalog_brand from im_forecast
+  union select distinct catalog_brand from im_fcst_13w_brand
   union select distinct brand as catalog_brand from ae_forecast_src
   union select distinct catalog_brand from inventory_base
 ),
