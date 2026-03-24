@@ -35,39 +35,13 @@ ranges as (
     to_date(dateadd(week, 14, a.this_week_start))                                      as end_13w_excl
   from anchor a
 ),
-catalog_listings as (
-  select
-    l.listing_id,
-    case
-      when pt.catalog_brand ilike 'Standard Process%' then 'Standard Process'
-      when pt.catalog_brand ilike 'Nutricia%'         then 'Nutricia'
-      else pt.catalog_brand
-    end as catalog_brand
-  from analytics_db.stg_catalog.stg_catalog__listings l
-  left join pattern_db.public.product_catalog_listing_prices lp
-    on lp.l_id = l.id
-  left join analytics_db.stg_catalog.stg_catalog__products p
-    on p.id = l.product_id
-  left join pattern_db.public.product_catalog_brand_hierarchy pt
-    on pt.catalog_brand_id = p.partner_id and is_terminal_level = true
-),
-actuals_sales_cte as (
-  select
-    to_date(hs.order_date) as order_date,
-    cl.catalog_brand,
-    hs.converted_revenue,
-    hs.quantity
-  from pattern_db.public.hourly_sales hs
-  left join catalog_listings cl on hs.listing_id = cl.listing_id
-  where hs.country_code in ('US', 'CA', 'MX', 'BR')
-),
 weekly_actuals as (
   select
     to_date(dateadd(day, -dayofweek(order_date), order_date)) as week_start_date,
     catalog_brand,
-    sum(converted_revenue) as revenue,
-    sum(quantity)          as units
-  from actuals_sales_cte
+    sum(revenue) as revenue,
+    sum(units)   as units
+  from pattern_db.public.wbr_daily_sales
   group by 1, 2
 ),
 metrics_wk_brand as (
@@ -113,11 +87,11 @@ ytd_daily_brand as (
   select
     s.catalog_brand,
     r.last_week_start as last_completed_week_start,
-    sum(case when s.order_date between r.ytd_start     and r.last_week_end     then s.quantity else 0 end) as ytd_units,
-    sum(case when s.order_date between r.ytd_start_yoy and r.last_week_end_yoy then s.quantity else 0 end) as ytd_units_yoy,
-    sum(case when s.order_date between r.ytd_start     and r.last_week_end     then s.converted_revenue else 0 end) as ytd_rev,
-    sum(case when s.order_date between r.ytd_start_yoy and r.last_week_end_yoy then s.converted_revenue else 0 end) as ytd_rev_yoy
-  from actuals_sales_cte s
+    sum(case when s.order_date between r.ytd_start     and r.last_week_end     then s.units   else 0 end) as ytd_units,
+    sum(case when s.order_date between r.ytd_start_yoy and r.last_week_end_yoy then s.units   else 0 end) as ytd_units_yoy,
+    sum(case when s.order_date between r.ytd_start     and r.last_week_end     then s.revenue else 0 end) as ytd_rev,
+    sum(case when s.order_date between r.ytd_start_yoy and r.last_week_end_yoy then s.revenue else 0 end) as ytd_rev_yoy
+  from pattern_db.public.wbr_daily_sales s
   cross join ranges r
   group by 1, 2
 ),
@@ -440,39 +414,14 @@ order by partner_brand, order_date_pst
 
 # ── Query 3: Daily Amazon Sell-Through — rolling 8-week window ─────────────
 QUERY_AMAZON = """
-with catalog_listings as (
-  select
-    l.listing_id,
-    case
-      when pt.catalog_brand ilike 'Standard Process%' then 'Standard Process'
-      when pt.catalog_brand ilike 'Nutricia%'         then 'Nutricia'
-      else pt.catalog_brand
-    end as catalog_brand
-  from pattern_db.public.product_catalog_listing_prices lp
-  inner join analytics_db.stg_catalog.stg_catalog__listings l
-    on lp.l_id = l.id and l.listing_is_active = true
-  left join analytics_db.stg_catalog.stg_catalog__marketplaces mp
-    on lp.marketplace_id = mp.id
-  left join analytics_db.stg_catalog.stg_catalog__marketplace_groups mg
-    on mg.id = mp.marketplace_group_id
-  join analytics_db.stg_catalog.stg_catalog__sellers s
-    on lp.seller_id = s.id
-  left join analytics_db.stg_catalog.stg_catalog__products p
-    on p.id = l.product_id
-  left join pattern_db.public.product_catalog_brand_hierarchy pt
-    on pt.catalog_brand_id = p.partner_id and is_terminal_level = true
-  where mg.name = 'Amazon'
-)
 select
-  hs.order_date::date as order_date,
-  cl.catalog_brand,
-  sum(hs.converted_revenue) as converted_revenue,
-  sum(hs.quantity)           as quantity_sold
-from pattern_db.public.hourly_sales hs
-left join catalog_listings cl on hs.listing_id = cl.listing_id
-where hs.country_code = 'US'
-  and hs.order_date::date >= dateadd(week, -8, date_trunc('week', current_date))
-  and hs.order_date::date <  date_trunc('week', current_date)
+  order_date,
+  catalog_brand,
+  sum(converted_revenue) as converted_revenue,
+  sum(quantity_sold)     as quantity_sold
+from pattern_db.public.wbr_daily_amazon_sales
+where order_date >= dateadd(week, -8, date_trunc('week', current_date))
+  and order_date <  date_trunc('week', current_date)
 group by 1, 2
 order by 2, 1
 """
