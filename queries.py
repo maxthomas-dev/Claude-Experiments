@@ -41,7 +41,7 @@ weekly_actuals as (
     catalog_brand,
     sum(revenue) as revenue,
     sum(units)   as units
-  from pattern_db.public.wbr_daily_sales
+  from "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.wbr_daily_sales
   group by 1, 2
 ),
 metrics_wk_brand as (
@@ -91,7 +91,7 @@ ytd_daily_brand as (
     sum(case when s.order_date between r.ytd_start_yoy and r.last_week_end_yoy then s.units   else 0 end) as ytd_units_yoy,
     sum(case when s.order_date between r.ytd_start     and r.last_week_end     then s.revenue else 0 end) as ytd_rev,
     sum(case when s.order_date between r.ytd_start_yoy and r.last_week_end_yoy then s.revenue else 0 end) as ytd_rev_yoy
-  from pattern_db.public.wbr_daily_sales s
+  from "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.wbr_daily_sales s
   cross join ranges r
   group by 1, 2
 ),
@@ -419,7 +419,7 @@ select
   catalog_brand,
   sum(converted_revenue) as converted_revenue,
   sum(quantity_sold)     as quantity_sold
-from pattern_db.public.wbr_daily_amazon_sales
+from "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.wbr_daily_amazon_sales
 where order_date >= dateadd(week, -8, date_trunc('week', current_date))
   and order_date <  date_trunc('week', current_date)
 group by 1, 2

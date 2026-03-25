@@ -7,7 +7,7 @@
 
 -- ── Table 1: Daily sales by brand (feeds QUERY_WBR_MAIN) ────────────────────
 -- Collapses 120M hourly_sales rows to ~tens-of-thousands of daily+brand rows.
-create or replace table pattern_db.public.wbr_daily_sales as
+create or replace table "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.wbr_daily_sales as
 select
   to_date(hs.order_date) as order_date,
   case
@@ -29,7 +29,7 @@ group by 1, 2;
 
 
 -- ── Table 2: Daily Amazon sales by brand (feeds QUERY_AMAZON) ───────────────
-create or replace table pattern_db.public.wbr_daily_amazon_sales as
+create or replace table "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.wbr_daily_amazon_sales as
 with amazon_listings as (
   select distinct l.listing_id,
     case
@@ -62,12 +62,12 @@ group by 1, 2;
 
 
 -- ── Nightly refresh task (runs 6am UTC = 10pm/11pm PT) ──────────────────────
-create or replace task pattern_db.public.refresh_wbr_summary
+create or replace task "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.refresh_wbr_summary
   warehouse = <your_warehouse>
   schedule  = 'USING CRON 0 6 * * * UTC'
 as
 begin
-  create or replace table pattern_db.public.wbr_daily_sales as
+  create or replace table "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.wbr_daily_sales as
   select
     to_date(hs.order_date) as order_date,
     case
@@ -87,7 +87,7 @@ begin
   where hs.country_code in ('US', 'CA', 'MX', 'BR')
   group by 1, 2;
 
-  create or replace table pattern_db.public.wbr_daily_amazon_sales as
+  create or replace table "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.wbr_daily_amazon_sales as
   with amazon_listings as (
     select distinct l.listing_id,
       case
@@ -120,4 +120,4 @@ begin
 end;
 
 -- Activate the task (tasks start suspended by default)
-alter task pattern_db.public.refresh_wbr_summary resume;
+alter task "USER$MAX.THOMAS@PATTERN.COM".PUBLIC.refresh_wbr_summary resume;
