@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pattern WBR — Week of Mar 15, 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --accent: #6366f1;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+  .header { padding: 24px 32px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 16px; }
+  .header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .header .week { color: var(--muted); font-size: 13px; }
+  .main { padding: 24px 32px; max-width: 1400px; }
+
+  /* KPI cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .kpi .value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  .kpi .sub { margin-top: 4px; font-size: 12px; }
+
+  /* charts row */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .chart-card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 14px; }
+  .chart-card canvas { width: 100% !important; height: 150px !important; }
+
+  /* forecast strip */
+  .forecast-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  .fcst-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .fcst-card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 12px; }
+  .fcst-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .fcst-row:last-child { border-bottom: none; }
+  .fcst-row .fcst-label { color: var(--muted); font-size: 12px; }
+  .fcst-row .fcst-val { font-weight: 600; }
+
+  /* brand table */
+  .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 28px; }
+  .table-card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); padding: 10px 14px; text-align: right; font-weight: 600; background: var(--card); border-bottom: 1px solid var(--border); }
+  th:first-child { text-align: left; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: right; }
+  td:first-child { text-align: left; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+  .brand-name { font-weight: 500; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .num { font-variant-numeric: tabular-nums; }
+  .yoy.positive { color: var(--green); }
+  .yoy.negative { color: var(--red); }
+  .yoy.neutral  { color: var(--muted); }
+  .wos.positive { color: var(--green); font-weight: 600; }
+  .wos.negative { color: var(--red); font-weight: 700; }
+  .wos.warning  { color: var(--yellow); font-weight: 600; }
+
+  /* badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.positive { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge.negative { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  .footer { padding: 16px 32px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Pattern — Weekly Business Review</h1>
+  <span class="week">Week of Mar 15, 2026 &nbsp;·&nbsp; Americas Units</span>
+</div>
+
+<div class="main">
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">Last Week Units</div>
+      <div class="value">1.69M</div>
+      <div class="sub"><span class="badge positive">+45% YoY</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">L6W Run Rate</div>
+      <div class="value">1.65M</div>
+      <div class="sub"><span class="badge positive">+41% YoY</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">YTD Units</div>
+      <div class="value">18.30M</div>
+      <div class="sub"><span class="badge positive">+38% YoY</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">IM Forecast (13W RR)</div>
+      <div class="value">1.74M</div>
+      <div class="sub"><span class="badge positive">+40% YoY</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Total Inventory</div>
+      <div class="value">$251.0M</div>
+      <div class="sub" style="color:var(--muted)">7 WOS (IM)</div>
+    </div>
+    <div class="kpi">
+      <div class="label">L4W Cancel Rate</div>
+      <div class="value">6.5%</div>
+      <div class="sub" style="color:var(--muted)">392.7K cancelled units</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>Weekly Units — Last 6 Weeks</h3>
+      <canvas id="weeklyChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Amazon Daily Units — Last 28 Days</h3>
+      <canvas id="amzChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Daily Cancel Rate — Last 28 Days</h3>
+      <canvas id="cancChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Forecast Strip -->
+  <div class="forecast-strip">
+    <div class="fcst-card">
+      <h3>IM Forecast — 13 Week Run Rate</h3>
+      <div class="fcst-row">
+        <span class="fcst-label">F13W Units RR</span>
+        <span class="fcst-val">1.74M <span class="badge positive">+40%</span></span>
+      </div>
+      <div class="fcst-row">
+        <span class="fcst-label">L6W Run Rate</span>
+        <span class="fcst-val">1.65M <span class="badge positive">+41%</span></span>
+      </div>
+      <div class="fcst-row">
+        <span class="fcst-label">Last Week</span>
+        <span class="fcst-val">1.69M <span class="badge positive">+45%</span></span>
+      </div>
+    </div>
+    <div class="fcst-card">
+      <h3>AE Forecast vs IM Forecast</h3>
+      <div class="fcst-row">
+        <span class="fcst-label">AE F13W Units RR</span>
+        <span class="fcst-val">1.51M <span class="badge positive">+22%</span></span>
+      </div>
+      <div class="fcst-row">
+        <span class="fcst-label">IM F13W Units RR</span>
+        <span class="fcst-val">1.74M <span class="badge positive">+40%</span></span>
+      </div>
+      <div class="fcst-row">
+        <span class="fcst-label">YTD Units</span>
+        <span class="fcst-val">18.30M <span class="badge positive">+38%</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Brand Table -->
+  <div class="table-card">
+    <h3>Brand Performance — Top 25 by L6W Run Rate</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Brand</th>
+          <th>LW Units</th>
+          <th>LW YoY</th>
+          <th>L6W Run Rate</th>
+          <th>L6W YoY</th>
+          <th>IM F13W RR</th>
+          <th>Fcst YoY</th>
+          <th>Inventory</th>
+          <th>WOS</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="brand-name">Atrium - Pure Encapsulations</td>
+          <td class="num">325.5K</td>
+          <td class="num yoy positive">+41%</td>
+          <td class="num">318.4K</td>
+          <td class="num yoy positive">+37%</td>
+          <td class="num">330.9K</td>
+          <td class="num yoy positive">+34%</td>
+          <td class="num">$40.2M</td>
+          <td class="num wos positive">6</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Thorne Research</td>
+          <td class="num">301.4K</td>
+          <td class="num yoy positive">+70%</td>
+          <td class="num">288.4K</td>
+          <td class="num yoy positive">+60%</td>
+          <td class="num">290.8K</td>
+          <td class="num yoy positive">+52%</td>
+          <td class="num">$42.5M</td>
+          <td class="num wos positive">6</td>
+        </tr>
+        <tr>
+          <td class="brand-name">MegaFood</td>
+          <td class="num">52.5K</td>
+          <td class="num yoy positive">+19%</td>
+          <td class="num">51.3K</td>
+          <td class="num yoy positive">+15%</td>
+          <td class="num">49.5K</td>
+          <td class="num yoy positive">+12%</td>
+          <td class="num">$6.5M</td>
+          <td class="num wos positive">8</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Integrative Therapeutics</td>
+          <td class="num">44.7K</td>
+          <td class="num yoy positive">+22%</td>
+          <td class="num">43.0K</td>
+          <td class="num yoy positive">+13%</td>
+          <td class="num">42.3K</td>
+          <td class="num yoy positive">+11%</td>
+          <td class="num">$4.8M</td>
+          <td class="num wos positive">7</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Metagenics</td>
+          <td class="num">39.5K</td>
+          <td class="num yoy positive">+60%</td>
+          <td class="num">37.1K</td>
+          <td class="num yoy positive">+49%</td>
+          <td class="num">41.7K</td>
+          <td class="num yoy positive">+58%</td>
+          <td class="num">$7.5M</td>
+          <td class="num wos positive">6</td>
+        </tr>
+        <tr>
+          <td class="brand-name">KONG</td>
+          <td class="num">34.4K</td>
+          <td class="num yoy positive">+21%</td>
+          <td class="num">35.0K</td>
+          <td class="num yoy positive">+18%</td>
+          <td class="num">35.8K</td>
+          <td class="num yoy positive">+26%</td>
+          <td class="num">$1.0M</td>
+          <td class="num wos positive">7</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Swanson</td>
+          <td class="num">34.9K</td>
+          <td class="num yoy positive">+30%</td>
+          <td class="num">34.5K</td>
+          <td class="num yoy positive">+39%</td>
+          <td class="num">35.1K</td>
+          <td class="num yoy positive">+25%</td>
+          <td class="num">$2.7M</td>
+          <td class="num wos positive">9</td>
+        </tr>
+        <tr>
+          <td class="brand-name">GNC</td>
+          <td class="num">27.8K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">25.3K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">31.1K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">$2.9M</td>
+          <td class="num wos negative">5</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Natural Factors</td>
+          <td class="num">29.2K</td>
+          <td class="num yoy positive">+98%</td>
+          <td class="num">24.5K</td>
+          <td class="num yoy positive">+74%</td>
+          <td class="num">24.3K</td>
+          <td class="num yoy positive">+44%</td>
+          <td class="num">$1.8M</td>
+          <td class="num wos positive">6</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Gaia Herbs</td>
+          <td class="num">25.0K</td>
+          <td class="num yoy positive">+8%</td>
+          <td class="num">24.5K</td>
+          <td class="num yoy negative">-100%</td>
+          <td class="num">26.4K</td>
+          <td class="num yoy positive">+31%</td>
+          <td class="num">$3.5M</td>
+          <td class="num wos positive">7</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Vetoquinol</td>
+          <td class="num">24.0K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">24.2K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">23.6K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">$2.8M</td>
+          <td class="num wos positive">7</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Standard Process</td>
+          <td class="num">22.6K</td>
+          <td class="num yoy positive">+14%</td>
+          <td class="num">22.3K</td>
+          <td class="num yoy positive">+12%</td>
+          <td class="num">22.0K</td>
+          <td class="num yoy positive">+15%</td>
+          <td class="num">$3.7M</td>
+          <td class="num wos positive">7</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Yogi</td>
+          <td class="num">19.6K</td>
+          <td class="num yoy negative">-7%</td>
+          <td class="num">21.0K</td>
+          <td class="num yoy negative">-7%</td>
+          <td class="num">18.5K</td>
+          <td class="num yoy positive">+300%</td>
+          <td class="num">$2.2M</td>
+          <td class="num wos positive">14</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Dr Mercola</td>
+          <td class="num">20.6K</td>
+          <td class="num yoy positive">+200%</td>
+          <td class="num">21.0K</td>
+          <td class="num yoy positive">+300%</td>
+          <td class="num">23.6K</td>
+          <td class="num yoy positive">+9%</td>
+          <td class="num">$1.9M</td>
+          <td class="num wos negative">4</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Hims & Hers</td>
+          <td class="num">20.5K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">20.5K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">21.2K</td>
+          <td class="num yoy positive">+3512%</td>
+          <td class="num">$2.2M</td>
+          <td class="num wos positive">10</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Trace Minerals</td>
+          <td class="num">9.7K</td>
+          <td class="num yoy negative">-47%</td>
+          <td class="num">20.1K</td>
+          <td class="num yoy positive">+8%</td>
+          <td class="num">914</td>
+          <td class="num yoy negative">-95%</td>
+          <td class="num">$1.1M</td>
+          <td class="num wos warning">59</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Youtheory</td>
+          <td class="num">20.4K</td>
+          <td class="num yoy positive">+25%</td>
+          <td class="num">19.4K</td>
+          <td class="num yoy positive">+14%</td>
+          <td class="num">22.9K</td>
+          <td class="num yoy positive">+41%</td>
+          <td class="num">$1.3M</td>
+          <td class="num wos positive">7</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Sakura</td>
+          <td class="num">17.4K</td>
+          <td class="num yoy positive">+16%</td>
+          <td class="num">18.9K</td>
+          <td class="num yoy positive">+17%</td>
+          <td class="num">18.1K</td>
+          <td class="num yoy positive">+36%</td>
+          <td class="num">$1.3M</td>
+          <td class="num wos positive">11</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Sylvania</td>
+          <td class="num">16.9K</td>
+          <td class="num yoy negative">-500%</td>
+          <td class="num">18.0K</td>
+          <td class="num yoy negative">-9%</td>
+          <td class="num">17.7K</td>
+          <td class="num yoy negative">-500%</td>
+          <td class="num">$1.9M</td>
+          <td class="num wos positive">9</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Spanx</td>
+          <td class="num">17.5K</td>
+          <td class="num yoy positive">+21%</td>
+          <td class="num">17.3K</td>
+          <td class="num yoy positive">+21%</td>
+          <td class="num">11.7K</td>
+          <td class="num yoy negative">-35%</td>
+          <td class="num">$4.7M</td>
+          <td class="num wos warning">17</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Pura</td>
+          <td class="num">16.0K</td>
+          <td class="num yoy positive">+85%</td>
+          <td class="num">15.8K</td>
+          <td class="num yoy positive">+95%</td>
+          <td class="num">20.2K</td>
+          <td class="num yoy positive">+90%</td>
+          <td class="num">$3.7M</td>
+          <td class="num wos positive">8</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Seeking Health</td>
+          <td class="num">14.6K</td>
+          <td class="num yoy positive">+33%</td>
+          <td class="num">13.9K</td>
+          <td class="num yoy positive">+29%</td>
+          <td class="num">13.9K</td>
+          <td class="num yoy positive">+25%</td>
+          <td class="num">$1.4M</td>
+          <td class="num wos positive">6</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Host Defense</td>
+          <td class="num">13.7K</td>
+          <td class="num yoy negative">-500%</td>
+          <td class="num">13.6K</td>
+          <td class="num yoy negative">-10%</td>
+          <td class="num">14.4K</td>
+          <td class="num yoy positive">+400%</td>
+          <td class="num">$1.3M</td>
+          <td class="num wos negative">5</td>
+        </tr>
+        <tr>
+          <td class="brand-name">Kevin Murphy</td>
+          <td class="num">13.7K</td>
+          <td class="num yoy positive">+30%</td>
+          <td class="num">13.3K</td>
+          <td class="num yoy positive">+52%</td>
+          <td class="num">13.5K</td>
+          <td class="num yoy positive">+23%</td>
+          <td class="num">$1.8M</td>
+          <td class="num wos positive">6</td>
+        </tr>
+        <tr>
+          <td class="brand-name">EZ Melts</td>
+          <td class="num">13.7K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">13.1K</td>
+          <td class="num yoy neutral">—</td>
+          <td class="num">14.1K</td>
+          <td class="num yoy positive">+440%</td>
+          <td class="num">$1.1M</td>
+          <td class="num wos positive">7</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /main -->
+
+<div class="footer">
+  Generated 2026-03-24 19:32 &nbsp;·&nbsp; Data as of Week of Mar 15, 2026
+</div>
+
+<script>
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { grid: { color: '#2a2d3a' }, ticks: { color: '#64748b', font: { size: 10 } } },
+    y: { grid: { color: '#2a2d3a' }, ticks: { color: '#64748b', font: { size: 10 } } }
+  }
+};
+
+// Weekly units chart
+new Chart(document.getElementById('weeklyChart'), {
+  type: 'bar',
+  data: {
+    labels: ["2/8", "2/15", "2/22", "3/1", "3/8", "3/15"],
+    datasets: [{
+      data: [1639287, 1625606, 1633064, 1638509, 1658554, 1688877],
+      backgroundColor: '#6366f1',
+      borderRadius: 4,
+    }]
+  },
+  options: { ...chartDefaults }
+});
+
+// Amazon daily units
+new Chart(document.getElementById('amzChart'), {
+  type: 'line',
+  data: {
+    labels: ["2/25", "2/26", "2/27", "2/28", "3/1", "3/2", "3/3", "3/4", "3/5", "3/6", "3/7", "3/8", "3/9", "3/10", "3/11", "3/12", "3/13", "3/14", "3/15", "3/16", "3/17", "3/18", "3/19", "3/20", "3/21", "3/22", "3/23", "3/24"],
+    datasets: [{
+      data: [225739, 219642, 205211, 210843, 248677, 230069, 227264, 226093, 194699, 205582, 213799, 240389, 233944, 223498, 225266, 218059, 204486, 214621, 247750, 234574, 230514, 230589, 213350, 206500, 220204, 264452, 249253, 86547],
+      borderColor: '#38bdf8',
+      backgroundColor: 'rgba(56,189,248,0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+    }]
+  },
+  options: { ...chartDefaults }
+});
+
+// Cancellation rate chart
+new Chart(document.getElementById('cancChart'), {
+  type: 'line',
+  data: {
+    labels: ["2/25", "2/26", "2/27", "2/28", "3/1", "3/2", "3/3", "3/4", "3/5", "3/6", "3/7", "3/8", "3/9", "3/10", "3/11", "3/12", "3/13", "3/14", "3/15", "3/16", "3/17", "3/18", "3/19", "3/20", "3/21", "3/22", "3/23", "3/24"],
+    datasets: [{
+      data: [7.4, 6.9, 6.5, 7.9, 7.6, 7.0, 6.9, 7.1, 7.3, 5.6, 6.8, 7.0, 6.5, 7.0, 7.1, 7.0, 5.9, 7.4, 8.2, 6.8, 7.9, 6.4, 5.9, 4.5, 3.7, 3.0, 1.9, 3.9],
+      borderColor: '#ef4444',
+      backgroundColor: 'rgba(239,68,68,0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+    }]
+  },
+  options: {
+    ...chartDefaults,
+    scales: {
+      ...chartDefaults.scales,
+      y: {
+        ...chartDefaults.scales.y,
+        ticks: {
+          color: '#64748b',
+          font: { size: 10 },
+          callback: v => v + '%'
+        }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
