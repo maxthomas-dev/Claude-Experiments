@@ -1,8 +1,13 @@
 """
-WBR Snowflake queries — simple SELECTs from pre-built reporting table.
+WBR Snowflake queries — simple SELECTs from wbr_brand_metrics.
 
-All heavy computation now happens in setup_snowflake.sql (wbr_brand_metrics).
-n8n / Streamlit just reads from the output table — no complex joins at runtime.
+All heavy computation (WBR metrics, cancellation projections, forecasts,
+inventory) happens nightly in setup_snowflake.sql.
+n8n / Streamlit reads from the single output table — no complex joins at runtime.
+
+Daily Amazon sell-through (wbr_daily_amazon_sales) is used internally by the
+cancellation projection logic in setup_snowflake.sql and is no longer queried
+separately — everything needed is already in wbr_brand_metrics.
 """
 
 # ── Query 1: Full WBR brand metrics (includes cancellation projections) ──────
@@ -31,18 +36,4 @@ select
 from <YOUR_DATABASE>.<YOUR_SCHEMA>.wbr_brand_metrics
 where is_total = 0
 order by catalog_brand
-"""
-
-
-# ── Query 3: Daily Amazon sell-through — rolling 8-week window ───────────────
-QUERY_AMAZON = """
-select
-  order_date,
-  catalog_brand,
-  converted_revenue,
-  quantity_sold
-from <YOUR_DATABASE>.<YOUR_SCHEMA>.wbr_daily_amazon_sales
-where order_date >= dateadd(week, -8, date_trunc('week', current_date))
-  and order_date <  date_trunc('week', current_date)
-order by catalog_brand, order_date
 """
